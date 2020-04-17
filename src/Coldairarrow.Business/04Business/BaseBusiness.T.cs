@@ -1,12 +1,13 @@
 ﻿using Coldairarrow.DataRepository;
 using Coldairarrow.Util;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Linq;
 using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Business
 {
@@ -61,36 +62,65 @@ namespace Coldairarrow.Business
         private string _conString { get; }
         private DatabaseType? _dbType { get; }
         private IRepository _service { get; set; }
+        private IRepository _fullService { get; set; }
         private object _serviceLock = new object();
         protected virtual string _valueField { get; } = "Id";
         protected virtual string _textField { get => throw new Exception("请在子类重写"); }
+        private SynchronizedCollection<IRepository> _dbs { get; }
+            = new SynchronizedCollection<IRepository>();
+        private IRepository GetBusRepository(string conString, DatabaseType? dbType, bool autoDispose)
+        {
+            var db = new BusRepository(DbFactory.GetRepository(conString, dbType));
+            if (autoDispose)
+                _dbs.Add(db);
+
+            return db;
+        }
+        private IRepository GetBusRepository(IRepository fullRepository, bool autoDispose)
+        {
+            var db = new BusRepository(fullRepository);
+            if (autoDispose)
+                _dbs.Add(db);
+
+            return db;
+        }
+        private IRepository GetFullRepository(string conString, DatabaseType? dbType, bool autoDispose)
+        {
+            var db = DbFactory.GetRepository(conString, dbType);
+            if (autoDispose)
+                _dbs.Add(db);
+
+            return db;
+        }
+        private void InitDb()
+        {
+            if (_service == null) //双if +lock
+            {
+                lock (_serviceLock)
+                {
+                    if (_service == null)
+                    {
+                        _fullService = GetFullRepository(_conString, _dbType, true);
+                        _service = GetBusRepository(_fullService, true);
+                    }
+                }
+            }
+        }
 
         #endregion
 
         #region 外部属性
 
         /// <summary>
-        /// 底层仓储接口,支持跨表操作
+        /// 业务仓储接口(支持软删除),支持联表操作
         /// 注：仅支持单线程操作
+        /// 注：多线程请使用GetNewService(conString,dbType,false),并且需要手动释放
         /// </summary>
-        /// <value>
-        /// The service.
-        /// </value>
         public IRepository Service
         {
             get
             {
-                if (_service == null) //双if +lock
-                {
-                    lock (_serviceLock)
-                    {
-                        if (_service == null)
-                        {
-                            _service = DbFactory.GetRepository(_conString, _dbType);
-                            _service = new BusRepository(_service);
-                        }
-                    }
-                }
+                InitDb();
 
                 return _service;
             }
@@ -103,7 +133,7 @@ namespace Coldairarrow.Business
         /// <returns></returns>
         public IRepository GetNewService()
         {
-            return new BusRepository(DbFactory.GetRepository(_conString, _dbType));
+            return GetBusRepository(_conString, _dbType, true);
         }
 
         /// <summary>
@@ -112,15 +142,49 @@ namespace Coldairarrow.Business
         /// </summary>
         /// <param name="conString">连接字符串</param>
         /// <param name="dbType">数据库类型</param>
+        /// <param name="autoDispose">自动释放</param>
         /// <returns></returns>
-        public IRepository GetNewService(string conString, DatabaseType dbType)
+        public IRepository GetNewService(string conString, DatabaseType dbType, bool autoDispose)
         {
-            return new BusRepository(DbFactory.GetRepository(conString, dbType));
+            return GetBusRepository(conString, dbType, autoDispose);
         }
 
-        public void UseRepository(IRepository repository)
+        /// <summary>
+        /// 完整仓储接口(不支持软删除,直接操作数据库),支持联表操作
+        /// 注：仅支持单线程操作
+        /// 注：多线程请使用GetNewFullService(conString,dbType,false),并且需要手动释放
+        /// </summary>
+        public IRepository FullService
         {
-            _service = repository;
+            get
+            {
+                InitDb();
+
+                return _fullService;
+            }
+        }
+
+        /// <summary>
+        /// 获取新的数据仓储
+        /// 注:支持多线程(每个线程需要单独的IRepository)
+        /// </summary>
+        /// <returns></returns>
+        public IRepository GetNewFullService()
+        {
+            return GetFullRepository(_conString, _dbType, true);
+        }
+
+        /// <summary>
+        /// 获取新的数据仓储
+        /// 注:支持多线程(每个线程需要单独的IRepository)
+        /// </summary>
+        /// <param name="conString">连接字符串</param>
+        /// <param name="dbType">数据库类型</param>
+        /// <param name="autoDispose">自动释放</param>
+        /// <returns></returns>
+        public IRepository GetNewFullService(string conString, DatabaseType dbType, bool autoDispose)
+        {
+            return GetFullRepository(conString, dbType, autoDispose);
         }
 
         #endregion
@@ -131,6 +195,10 @@ namespace Coldairarrow.Business
         {
             return Service.RunTransaction(action, isolationLevel);
         }
+        public async Task<(bool Success, Exception ex)> RunTransactionAsync(Func<Task> action, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            return await Service.RunTransactionAsync(action, isolationLevel);
+        }
 
         #endregion
 
@@ -140,18 +208,36 @@ namespace Coldairarrow.Business
         /// 添加数据
         /// </summary>
         /// <param name="entity">实体对象</param>
-        public void Insert(T entity)
+        public int Insert(T entity)
         {
-            Service.Insert<T>(entity);
+            return Service.Insert(entity);
+        }
+
+        /// <summary>
+        /// 添加数据
+        /// </summary>
+        /// <param name="entity">实体对象</param>
+        public async Task<int> InsertAsync(T entity)
+        {
+            return await Service.InsertAsync(entity);
         }
 
         /// <summary>
         /// 添加多条数据
         /// </summary>
         /// <param name="entities">实体对象集合</param>
-        public void Insert(List<T> entities)
+        public int Insert(List<T> entities)
         {
-            Service.Insert<T>(entities);
+            return Service.Insert(entities);
+        }
+
+        /// <summary>
+        /// 添加多条数据
+        /// </summary>
+        /// <param name="entities">实体对象集合</param>
+        public async Task<int> InsertAsync(List<T> entities)
+        {
+            return await Service.InsertAsync(entities);
         }
 
         /// <summary>
@@ -170,54 +256,107 @@ namespace Coldairarrow.Business
         /// <summary>
         /// 删除所有数据
         /// </summary>
-        public void DeleteAll()
+        public int DeleteAll()
         {
-            Service.DeleteAll<T>();
+            return Service.DeleteAll<T>();
+        }
+
+        /// <summary>
+        /// 删除所有数据
+        /// </summary>
+        public async Task<int> DeleteAllAsync()
+        {
+            return await Service.DeleteAllAsync<T>();
         }
 
         /// <summary>
         /// 删除指定主键数据
         /// </summary>
         /// <param name="key"></param>
-        public void Delete(string key)
+        public int Delete(string key)
         {
-            Service.Delete<T>(key);
+            return Service.Delete<T>(key);
+        }
+
+        /// <summary>
+        /// 删除指定主键数据
+        /// </summary>
+        /// <param name="key"></param>
+        public async Task<int> DeleteAsync(string key)
+        {
+            return await Service.DeleteAsync<T>(key);
         }
 
         /// <summary>
         /// 通过主键删除多条数据
         /// </summary>
         /// <param name="keys"></param>
-        public void Delete(List<string> keys)
+        public int Delete(List<string> keys)
         {
-            Service.Delete<T>(keys);
+            return Service.Delete<T>(keys);
+        }
+
+        /// <summary>
+        /// 通过主键删除多条数据
+        /// </summary>
+        /// <param name="keys"></param>
+        public async Task<int> DeleteAsync(List<string> keys)
+        {
+            return await Service.DeleteAsync<T>(keys);
         }
 
         /// <summary>
         /// 删除单条数据
         /// </summary>
         /// <param name="entity">实体对象</param>
-        public void Delete(T entity)
+        public int Delete(T entity)
         {
-            Service.Delete<T>(entity);
+            return Service.Delete<T>(entity);
+        }
+
+        /// <summary>
+        /// 删除单条数据
+        /// </summary>
+        /// <param name="entity">实体对象</param>
+        public async Task<int> DeleteAsync(T entity)
+        {
+            return await Service.DeleteAsync(entity);
         }
 
         /// <summary>
         /// 删除多条数据
         /// </summary>
         /// <param name="entities">实体对象集合</param>
-        public void Delete(List<T> entities)
+        public int Delete(List<T> entities)
         {
-            Service.Delete<T>(entities);
+            return Service.Delete<T>(entities);
+        }
+
+        /// <summary>
+        /// 删除多条数据
+        /// </summary>
+        /// <param name="entities">实体对象集合</param>
+        public async Task<int> DeleteAsync(List<T> entities)
+        {
+            return await Service.DeleteAsync<T>(entities);
         }
 
         /// <summary>
         /// 删除指定条件数据
         /// </summary>
         /// <param name="condition">筛选条件</param>
-        public void Delete(Expression<Func<T, bool>> condition)
+        public int Delete(Expression<Func<T, bool>> condition)
         {
-            Service.Delete(condition);
+            return Service.Delete(condition);
+        }
+
+        /// <summary>
+        /// 删除指定条件数据
+        /// </summary>
+        /// <param name="condition">筛选条件</param>
+        public async Task<int> DeleteAsync(Expression<Func<T, bool>> condition)
+        {
+            return await Service.DeleteAsync(condition);
         }
 
         /// <summary>
@@ -234,6 +373,20 @@ namespace Coldairarrow.Business
             return Service.Delete_Sql(where);
         }
 
+        /// <summary>
+        /// 使用SQL语句按照条件删除数据
+        /// 用法:Delete_Sql"Base_User"(x=&gt;x.Id == "Admin")
+        /// 注：生成的SQL类似于DELETE FROM [Base_User] WHERE [Name] = 'xxx' WHERE [Id] = 'Admin'
+        /// </summary>
+        /// <param name="where">条件</param>
+        /// <returns>
+        /// 影响条数
+        /// </returns>
+        public async Task<int> Delete_SqlAsync(Expression<Func<T, bool>> where)
+        {
+            return await Service.Delete_SqlAsync(where);
+        }
+
         #endregion
 
         #region 更新数据
@@ -242,38 +395,36 @@ namespace Coldairarrow.Business
         /// 更新一条数据
         /// </summary>
         /// <param name="entity">实体对象</param>
-        public void Update(T entity)
+        public int Update(T entity)
         {
-            Service.Update(entity);
+            return Service.Update(entity);
+        }
+
+        /// <summary>
+        /// 更新一条数据
+        /// </summary>
+        /// <param name="entity">实体对象</param>
+        public async Task<int> UpdateAsync(T entity)
+        {
+            return await Service.UpdateAsync(entity);
         }
 
         /// <summary>
         /// 更新多条数据
         /// </summary>
         /// <param name="entities">数据列表</param>
-        public void Update(List<T> entities)
+        public int Update(List<T> entities)
         {
-            Service.Update<T>(entities);
+            return Service.Update(entities);
         }
 
         /// <summary>
-        /// 更新一条数据,某些属性
-        /// </summary>
-        /// <param name="entity">实体对象</param>
-        /// <param name="properties">需要更新的字段</param>
-        public void UpdateAny(T entity, List<string> properties)
-        {
-            Service.UpdateAny(entity, properties);
-        }
-
-        /// <summary>
-        /// 更新多条数据,某些属性
+        /// 更新多条数据
         /// </summary>
         /// <param name="entities">数据列表</param>
-        /// <param name="properties">需要更新的字段</param>
-        public void UpdateAny(List<T> entities, List<string> properties)
+        public async Task<int> UpdateAsync(List<T> entities)
         {
-            Service.UpdateAny(entities, properties);
+            return await Service.UpdateAsync(entities);
         }
 
         /// <summary>
@@ -281,24 +432,45 @@ namespace Coldairarrow.Business
         /// </summary>
         /// <param name="whereExpre">筛选表达式</param>
         /// <param name="set">更改属性回调</param>
-        public void UpdateWhere(Expression<Func<T, bool>> whereExpre, Action<T> set)
+        public int UpdateWhere(Expression<Func<T, bool>> whereExpre, Action<T> set)
         {
-            Service.UpdateWhere(whereExpre, set);
+            return Service.UpdateWhere(whereExpre, set);
+        }
+
+        /// <summary>
+        /// 指定条件更新
+        /// </summary>
+        /// <param name="whereExpre">筛选表达式</param>
+        /// <param name="set">更改属性回调</param>
+        public async Task<int> UpdateWhereAsync(Expression<Func<T, bool>> whereExpre, Action<T> set)
+        {
+            return await Service.UpdateWhereAsync(whereExpre, set);
         }
 
         /// <summary>
         /// 使用SQL语句按照条件更新
-        /// 用法:UpdateWhere_Sql"Base_User"(x=&gt;x.Id == "Admin",("Name","小明"))
+        /// 用法:UpdateWhere_Sql"Base_User"(x=>x.Id == "Admin",("Name","小明"))
         /// 注：生成的SQL类似于UPDATE [TABLE] SET [Name] = 'xxx' WHERE [Id] = 'Admin'
         /// </summary>
         /// <param name="where">筛选条件</param>
         /// <param name="values">字段值设置</param>
-        /// <returns>
-        /// 影响条数
-        /// </returns>
-        public int UpdateWhere_Sql(Expression<Func<T, bool>> where, params (string field, object value)[] values)
+        /// <returns>影响条数</returns>
+        public int UpdateWhere_Sql(Expression<Func<T, bool>> where, params (string field, UpdateType updateType, object value)[] values)
         {
             return Service.UpdateWhere_Sql(where, values);
+        }
+
+        /// <summary>
+        /// 使用SQL语句按照条件更新
+        /// 用法:UpdateWhere_Sql"Base_User"(x=>x.Id == "Admin",("Name","小明"))
+        /// 注：生成的SQL类似于UPDATE [TABLE] SET [Name] = 'xxx' WHERE [Id] = 'Admin'
+        /// </summary>
+        /// <param name="where">筛选条件</param>
+        /// <param name="values">字段值设置</param>
+        /// <returns>影响条数</returns>
+        public async Task<int> UpdateWhere_SqlAsync(Expression<Func<T, bool>> where, params (string field, UpdateType updateType, object value)[] values)
+        {
+            return await Service.UpdateWhere_SqlAsync(where, values);
         }
 
         #endregion
@@ -316,12 +488,31 @@ namespace Coldairarrow.Business
         }
 
         /// <summary>
+        /// 获取实体
+        /// </summary>
+        /// <param name="keyValue">主键</param>
+        /// <returns></returns>
+        public async Task<T> GetEntityAsync(params object[] keyValue)
+        {
+            return await Service.GetEntityAsync<T>(keyValue);
+        }
+
+        /// <summary>
         /// 获取表的所有数据，当数据量很大时不要使用！
         /// </summary>
         /// <returns></returns>
         public List<T> GetList()
         {
             return Service.GetList<T>();
+        }
+
+        /// <summary>
+        /// 获取表的所有数据，当数据量很大时不要使用！
+        /// </summary>
+        /// <returns></returns>
+        public async Task<List<T>> GetListAsync()
+        {
+            return await Service.GetListAsync<T>();
         }
 
         /// <summary>
@@ -372,65 +563,9 @@ namespace Coldairarrow.Business
             return query.GetPagination(pagination).ToList();
         }
 
-        /// <summary>
-        /// 通过Sql查询返回DataTable
-        /// </summary>
-        /// <param name="sql">sql语句</param>
-        /// <returns></returns>
-        public DataTable GetDataTableWithSql(string sql)
-        {
-            return Service.GetDataTableWithSql(sql);
-        }
-
-        /// <summary>
-        /// 通过Sql参数查询返回DataTable
-        /// </summary>
-        /// <param name="sql">Sql语句</param>
-        /// <param name="parameters">查询参数</param>
-        /// <returns></returns>
-        public DataTable GetDataTableWithSql(string sql, List<DbParameter> parameters)
-        {
-            return Service.GetDataTableWithSql(sql, parameters);
-        }
-
-        /// <summary>
-        /// 通过sql返回List
-        /// </summary>
-        /// <param name="sqlStr">sql语句</param>
-        /// <returns></returns>
-        public List<U> GetListBySql<U>(string sqlStr) where U : class, new()
-        {
-            return Service.GetListBySql<U>(sqlStr);
-        }
-
-        /// <summary>
-        /// 通过sql返回list
-        /// </summary>
-        /// <param name="sqlStr">sql语句</param>
-        /// <param name="param">参数</param>
-        /// <returns></returns>
-        public List<U> GetListBySql<U>(string sqlStr, List<DbParameter> param) where U : class, new()
-        {
-            return Service.GetListBySql<U>(sqlStr, param);
-        }
-
         #endregion
 
         #region 执行Sql语句
-
-        /// <summary>
-        /// 执行Sql语句
-        /// </summary>
-        /// <param name="sql">Sql语句</param>
-        public int ExecuteSql(string sql)
-        {
-            return Service.ExecuteSql(sql);
-        }
-
-        public int ExecuteSql(string sql, List<DbParameter> parameters)
-        {
-            return Service.ExecuteSql(sql, parameters);
-        }
 
         #endregion
 
@@ -523,9 +658,9 @@ namespace Coldairarrow.Business
         /// <param name="selectedValueJson">已选择的项，JSON数组</param>
         /// <param name="q">查询关键字</param>
         /// <returns></returns>
-        public List<SelectOption> GetOptionList(string selectedValueJson, string q)
+        public async Task<List<SelectOption>> GetOptionListAsync(string selectedValueJson, string q)
         {
-            return GetOptionList(selectedValueJson, q, _textField, _valueField, null);
+            return await GetOptionListAsync(selectedValueJson, q, _textField, _valueField, null);
         }
 
         /// <summary>
@@ -537,7 +672,7 @@ namespace Coldairarrow.Business
         /// <param name="valueField">值字段</param>
         /// <param name="source">指定数据源</param>
         /// <returns></returns>
-        public List<SelectOption> GetOptionList(string selectedValueJson, string q, string textFiled, string valueField, IQueryable<T> source = null)
+        public async Task<List<SelectOption>> GetOptionListAsync(string selectedValueJson, string q, string textFiled, string valueField, IQueryable<T> source = null)
         {
             Pagination pagination = new Pagination
             {
@@ -549,7 +684,7 @@ namespace Coldairarrow.Business
             List<string> ids = selectedValueJson?.ToList<string>() ?? new List<string>();
             if (ids.Count > 0)
             {
-                selectedList = GetNewQ().Where($"@0.Contains({valueField})", ids).ToList();
+                selectedList = await GetNewQ().Where($"@0.Contains({valueField})", ids).ToListAsync();
 
                 where += $" && !@0.Contains({valueField})";
             }
@@ -558,7 +693,7 @@ namespace Coldairarrow.Business
             {
                 where += $" && it.{textFiled}.Contains(@1)";
             }
-            List<T> newQList = GetNewQ().Where(where, ids, q).GetPagination(pagination).ToList();
+            List<T> newQList = await GetNewQ().Where(where, ids, q).GetPagination(pagination).ToListAsync();
 
             var resList = selectedList.Concat(newQList).Select(x => new SelectOption
             {
@@ -582,13 +717,14 @@ namespace Coldairarrow.Business
 
         #region Dispose
 
-        /// <summary>
-        /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
-        /// </summary>
-        /// <exception cref="System.NotImplementedException"></exception>
+        private bool _disposed = false;
         public virtual void Dispose()
         {
-            _service?.Dispose();
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _dbs?.ForEach(x => x?.Dispose());
         }
 
         #endregion

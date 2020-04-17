@@ -1,13 +1,14 @@
-using Coldairarrow.Business.Base_Manage;
+ï»¿using Coldairarrow.Business.Base_Manage;
 using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Api.Controllers.Base_Manage
 {
     /// <summary>
-    /// ÏµÍ³È¨ÏŞ
+    /// ç³»ç»Ÿæƒé™
     /// </summary>
     /// <seealso cref="Coldairarrow.Api.BaseApiController" />
     [Route("/Base_Manage/[controller]/[action]")]
@@ -24,116 +25,87 @@ namespace Coldairarrow.Api.Controllers.Base_Manage
 
         #endregion
 
-        #region »ñÈ¡
+        #region è·å–
 
         /// <summary>
-        /// »ñÈ¡ÏêÇé
+        /// è·å–è¯¦æƒ…
         /// </summary>
-        /// <param name="id">idÖ÷¼ü</param>
+        /// <param name="id">idä¸»é”®</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<Base_Action>> GetTheData(string id)
+        public async Task<Base_Action> GetTheData(string id)
         {
-            var theData = _actionBus.GetTheData(id) ?? new Base_Action();
-
-            return Success(theData);
+            return (await _actionBus.GetTheDataAsync(id)) ?? new Base_Action();
         }
 
         /// <summary>
-        /// »ñÈ¡Êı¾İÁĞ±í
+        /// è·å–æ•°æ®åˆ—è¡¨
         /// </summary>
-        /// <param name="parentId">¸¸¼¶Id</param>
+        /// <param name="parentId">çˆ¶çº§Id</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_Action>>> GetPermissionList(string parentId)
+        public async Task<List<Base_Action>> GetPermissionList(string parentId)
         {
-            var dataList = _actionBus.GetDataList(new Pagination(), null, parentId, new List<int> { 2 });
-
-            return Success(dataList);
+            return await _actionBus.GetDataListAsync(new Pagination(), null, parentId, new List<int> { 2 });
         }
 
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_Action>>> GetAllActionList()
+        public async Task<List<Base_Action>> GetAllActionList()
         {
-            var dataList = _actionBus.GetDataList(new Pagination(), null, null, new List<int> { 0, 1, 2 });
-
-            return Success(dataList);
+            return await _actionBus.GetDataListAsync(new Pagination(), null, null, new List<int> { 0, 1, 2 });
         }
 
         /// <summary>
-        /// »ñÈ¡²Ëµ¥Ê÷ÁĞ±í
+        /// è·å–èœå•æ ‘åˆ—è¡¨
         /// </summary>
-        /// <param name="keyword">¹Ø¼ü×Ö</param>
+        /// <param name="keyword">å…³é”®å­—</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_ActionDTO>>> GetMenuTreeList(string keyword)
+        public async Task<List<Base_ActionDTO>> GetMenuTreeList(string keyword)
         {
-            var dataList = _actionBus.GetTreeDataList(keyword, new List<int> { 0, 1 }, true);
-
-            return Success(dataList);
+            return await _actionBus.GetTreeDataListAsync(keyword, new List<int> { 0, 1 }, true);
         }
 
         /// <summary>
-        /// »ñÈ¡È«ĞÄ°®ÄãÊ÷ÁĞ±í
+        /// è·å–æƒé™æ ‘åˆ—è¡¨
         /// </summary>
-        /// <param name="keyword">¹Ø¼ü×Ö</param>
+        /// <param name="keyword">å…³é”®å­—</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_ActionDTO>>> GetActionTreeList(string keyword)
+        public async Task<List<Base_ActionDTO>> GetActionTreeList(string keyword)
         {
-            var dataList = _actionBus.GetTreeDataList(keyword, null, false);
-
-            return Success(dataList);
+            return await _actionBus.GetTreeDataListAsync(keyword, null, false);
         }
 
         #endregion
 
-        #region Ìá½»
+        #region æäº¤
 
         [HttpPost]
-        public ActionResult<AjaxResult> SaveData(Base_Action theData, string permissionListJson)
+        public async Task SaveData(Base_Action theData, string permissionListJson)
         {
-            AjaxResult res;
             var permissionList = permissionListJson?.ToList<Base_Action>();
             if (theData.Id.IsNullOrEmpty())
             {
                 theData.InitEntity();
 
-                res = _actionBus.AddData(theData, permissionList);
+                await _actionBus.AddDataAsync(theData, permissionList);
             }
             else
             {
-                res = _actionBus.UpdateData(theData, permissionList);
+                await _actionBus.UpdateDataAsync(theData, permissionList);
             }
-
-            return JsonContent(res.ToJson());
         }
 
         /// <summary>
-        /// É¾³ıÊı¾İ
+        /// åˆ é™¤æ•°æ®
         /// </summary>
-        /// <param name="ids">idÊı×é,JSONÊı×é</param>
+        /// <param name="ids">idæ•°ç»„,JSONæ•°ç»„</param>
         [HttpPost]
-        public ActionResult<AjaxResult> DeleteData(string ids)
+        public async Task DeleteData(string ids)
         {
-            var res = _actionBus.DeleteData(ids.ToList<string>());
-
-            return JsonContent(res.ToJson());
+            await _actionBus.DeleteDataAsync(ids.ToList<string>());
         }
-
-        ///// <summary>
-        ///// ±£´æÈ¨ÏŞ
-        ///// </summary>
-        ///// <returns></returns>
-        ///// <param name="parentId">¸¸¼¶Id</param>
-        ///// <param name="permissionListJson">È¨ÏŞÁĞ±íJSONÊı×é</param>
-        //[HttpPost]
-        //public ActionResult<AjaxResult> SavePermission(string parentId, string permissionListJson)
-        //{
-        //    var res = _actionBus.SavePermission(parentId, permissionListJson?.ToList<Base_Action>());
-
-        //    return JsonContent(res.ToJson());
-        //}
 
         #endregion
     }

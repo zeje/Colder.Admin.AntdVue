@@ -1,14 +1,14 @@
-using Coldairarrow.Business.Base_Manage;
+ï»¿using Coldairarrow.Business.Base_Manage;
 using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Api.Controllers.Base_Manage
 {
     /// <summary>
-    /// Ó¦ÓÃÃÜÔ¿
+    /// åº”ç”¨å¯†é’¥
     /// </summary>
     /// <seealso cref="Coldairarrow.Api.BaseApiController" />
     [Route("/Base_Manage/[controller]/[action]")]
@@ -25,73 +25,66 @@ namespace Coldairarrow.Api.Controllers.Base_Manage
 
         #endregion
 
-        #region »ñÈ¡
+        #region è·å–
 
         /// <summary>
-        /// »ñÈ¡Êı¾İÁĞ±í
+        /// è·å–æ•°æ®åˆ—è¡¨
         /// </summary>
-        /// <param name="pagination">·ÖÒ³²ÎÊı</param>
-        /// <param name="roleName">½ÇÉ«Ãû</param>
+        /// <param name="pagination">åˆ†é¡µå‚æ•°</param>
+        /// <param name="roleName">è§’è‰²å</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_RoleDTO>>> GetDataList(Pagination pagination, string roleName)
+        public async Task<AjaxResult<List<Base_RoleDTO>>> GetDataList(Pagination pagination, string roleName)
         {
-            var dataList = _roleBus.GetDataList(pagination, null, roleName);
+            var dataList = await _roleBus.GetDataListAsync(pagination, null, roleName);
 
-            return Content(pagination.BuildTableResult_AntdVue(dataList).ToJson());
+            return DataTable(dataList, pagination);
         }
 
         /// <summary>
-        /// »ñÈ¡ÏêÇé
+        /// è·å–è¯¦æƒ…
         /// </summary>
-        /// <param name="id">idÖ÷¼ü</param>
+        /// <param name="id">idä¸»é”®</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult<AjaxResult<Base_RoleDTO>> GetTheData(string id)
+        public async Task<Base_RoleDTO> GetTheData(string id)
         {
-            var theData = _roleBus.GetTheData(id) ?? new Base_RoleDTO();
-
-            return Success(theData);
+            return await _roleBus.GetTheDataAsync(id) ?? new Base_RoleDTO();
         }
 
         #endregion
 
-        #region Ìá½»
+        #region æäº¤
 
         /// <summary>
-        /// ±£´æ
+        /// ä¿å­˜
         /// </summary>
-        /// <param name="theData">±£´æµÄÊı¾İ</param>
-        /// <param name="actionsJson">È¨ÏŞÖµJSON</param>
+        /// <param name="theData">ä¿å­˜çš„æ•°æ®</param>
+        /// <param name="actionsJson">æƒé™å€¼JSON</param>
         [HttpPost]
-        public ActionResult<AjaxResult> SaveData(Base_Role theData, string actionsJson)
+        public async Task SaveData(Base_Role theData, string actionsJson)
         {
-            AjaxResult res;
             var actionList = actionsJson?.ToList<string>();
             if (theData.Id.IsNullOrEmpty())
             {
                 theData.InitEntity();
 
-                res = _roleBus.AddData(theData, actionList);
+                await _roleBus.AddDataAsync(theData, actionList);
             }
             else
             {
-                res = _roleBus.UpdateData(theData, actionList);
+                await _roleBus.UpdateDataAsync(theData, actionList);
             }
-
-            return JsonContent(res.ToJson());
         }
 
         /// <summary>
-        /// É¾³ıÊı¾İ
+        /// åˆ é™¤æ•°æ®
         /// </summary>
-        /// <param name="ids">idÊı×é,JSONÊı×é</param>
+        /// <param name="ids">idæ•°ç»„,JSONæ•°ç»„</param>
         [HttpPost]
-        public ActionResult<AjaxResult> DeleteData(string ids)
+        public async Task DeleteData(string ids)
         {
-            var res = _roleBus.DeleteData(ids.ToList<string>());
-
-            return JsonContent(res.ToJson());
+            await _roleBus.DeleteDataAsync(ids.ToList<string>());
         }
 
         #endregion

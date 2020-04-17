@@ -24,7 +24,7 @@ router.beforeEach((to, from, next) => {
         initRouter(to, from, next).then(() => {
           const redirect = decodeURIComponent(from.query.redirect || to.path)
           //桌面特殊处理
-          if (to.path == defaultSettings.desktopPath) {
+          if (to.path == defaultSettings.desktopPath || to.path == '/404') {
             next()
           } else {
             if (to.path === redirect) {

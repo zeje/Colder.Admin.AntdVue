@@ -1,64 +1,60 @@
-using Coldairarrow.Entity.Base_Manage;
+ï»¿using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Business.Base_Manage
 {
     public class Base_DbLinkBusiness : BaseBusiness<Base_DbLink>, IBase_DbLinkBusiness, IDependency
     {
-        #region Íâ²¿½Ó¿Ú
+        #region å¤–éƒ¨æ¥å£
 
-        public List<Base_DbLink> GetDataList(Pagination pagination)
+        public async Task<List<Base_DbLink>> GetDataListAsync(Pagination pagination)
         {
-            return GetIQueryable().GetPagination(pagination).ToList();
+            return await GetIQueryable().GetPagination(pagination).ToListAsync();
         }
 
         /// <summary>
-        /// »ñÈ¡Ö¸¶¨µÄµ¥ÌõÊı¾İ
+        /// è·å–æŒ‡å®šçš„å•æ¡æ•°æ®
         /// </summary>
-        /// <param name="id">Ö÷¼ü</param>
+        /// <param name="id">ä¸»é”®</param>
         /// <returns></returns>
-        public Base_DbLink GetTheData(string id)
+        public async Task<Base_DbLink> GetTheDataAsync(string id)
         {
-            return GetEntity(id);
+            return await GetEntityAsync(id);
         }
 
         /// <summary>
-        /// Ìí¼ÓÊı¾İ
+        /// æ·»åŠ æ•°æ®
         /// </summary>
-        /// <param name="newData">Êı¾İ</param>
-        public AjaxResult AddData(Base_DbLink newData)
+        /// <param name="newData">æ•°æ®</param>
+        public async Task AddDataAsync(Base_DbLink newData)
         {
-            Insert(newData);
-
-            return Success();
+            await InsertAsync(newData);
         }
 
         /// <summary>
-        /// ¸üĞÂÊı¾İ
+        /// æ›´æ–°æ•°æ®
         /// </summary>
-        public AjaxResult UpdateData(Base_DbLink theData)
+        public async Task UpdateDataAsync(Base_DbLink theData)
         {
-            Update(theData);
-
-            return Success();
+            await UpdateAsync(theData);
         }
 
-        public AjaxResult DeleteData(List<string> ids)
+        public async Task DeleteDataAsync(List<string> ids)
         {
-            Delete(ids);
-
-            return Success();
+            await DeleteAsync(ids);
         }
 
         #endregion
 
-        #region Ë½ÓĞ³ÉÔ±
+        #region ç§æœ‰æˆå‘˜
 
         #endregion
 
-        #region Êı¾İÄ£ĞÍ
+        #region æ•°æ®æ¨¡å‹
 
         #endregion
     }

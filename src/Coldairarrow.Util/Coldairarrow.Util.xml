@@ -115,23 +115,22 @@
             注：即该键未被访问后一段时间后过期，若此键一直被访问则过期时间自动延长
             </summary>
         </member>
+        <member name="T:Coldairarrow.Util.IRedisCache">
+            <summary>
+            Redis缓存
+            </summary>
+        </member>
         <member name="T:Coldairarrow.Util.RedisCache">
             <summary>
             Redis缓存
             </summary>
         </member>
-        <member name="M:Coldairarrow.Util.RedisCache.#ctor">
-            <summary>
-            默认构造函数
-            注：使用默认配置，即localhost:6379,无密码
-            </summary>
-        </member>
-        <member name="M:Coldairarrow.Util.RedisCache.#ctor(System.String,System.Int32)">
+        <member name="M:Coldairarrow.Util.RedisCache.#ctor(System.String)">
             <summary>
             构造函数
+            注意：请以单例使用
             </summary>
             <param name="config">配置字符串</param>
-            <param name="databaseIndex">数据库索引</param>
         </member>
         <member name="T:Coldairarrow.Util.SystemCache">
             <summary>
@@ -341,18 +340,18 @@
             <param name="index">索引序号</param>
             <param name="t">实体类型</param>
         </member>
-        <member name="T:Coldairarrow.Util.TaskQeury">
+        <member name="T:Coldairarrow.Util.TaskQueue">
             <summary>
             任务队列
             </summary>
         </member>
-        <member name="M:Coldairarrow.Util.TaskQeury.#ctor">
+        <member name="M:Coldairarrow.Util.TaskQueue.#ctor">
             <summary>
             默认队列
             注：默认间隔时间1ms
             </summary>
         </member>
-        <member name="M:Coldairarrow.Util.TaskQeury.#ctor(System.TimeSpan)">
+        <member name="M:Coldairarrow.Util.TaskQueue.#ctor(System.TimeSpan)">
             <summary>
             间隔任务队列
             注：每个任务之间间隔一段时间
@@ -626,7 +625,7 @@
             </summary>
             <returns></returns>
         </member>
-        <member name="M:Coldairarrow.Util.DbProviderFactoryHelper.GetConStr(System.String)">
+        <member name="M:Coldairarrow.Util.DbProviderFactoryHelper.GetFullConString(System.String)">
             <summary>
             通过连接名或连接字符串获取连接字符串
             </summary>
@@ -748,29 +747,6 @@
             <param name="filePath">文件路径（包含文件名）</param>
             <param name="nameSpace">实体命名空间</param>
             <param name="schemaName">架构（模式）名</param>
-        </member>
-        <member name="T:Coldairarrow.Util.RedisHelper">
-            <summary>
-            Redis帮助类
-            </summary>
-        </member>
-        <member name="M:Coldairarrow.Util.RedisHelper.GetConnection(System.String,System.Int32,System.String)">
-            <summary>
-            获取Redis连接
-            注：此对象无需一直创建，建议使用单列模式
-            </summary>
-            <param name="serverIp">Redis服务器Ip</param>
-            <param name="port">端口</param>
-            <param name="password">密码</param>
-            <returns></returns>
-        </member>
-        <member name="M:Coldairarrow.Util.RedisHelper.GetConnection(System.String)">
-            <summary>
-            获取Redis连接
-            注：此对象无需一直创建，建议使用单列模式
-            </summary>
-            <param name="config">配置字符串</param>
-            <returns></returns>
         </member>
         <member name="T:Coldairarrow.Util.SqlServerHelper">
             <summary>
@@ -1379,13 +1355,14 @@
             <param name="pages">总页数</param>
             <returns></returns>
         </member>
-        <member name="M:Coldairarrow.Util.Extention.GetPagination``1(System.Linq.IQueryable{``0},Coldairarrow.Util.Pagination)">
+        <member name="M:Coldairarrow.Util.Extention.GetPagination``1(System.Linq.IQueryable{``0},Coldairarrow.Util.Pagination,System.ValueTuple{System.String,System.String}[])">
             <summary>
             获取分页后的数据
             </summary>
             <typeparam name="T">实体类型</typeparam>
             <param name="source">数据源IQueryable</param>
             <param name="pagination">分页参数</param>
+            <param name="thenOrderBy">再排序</param>
             <returns></returns>
         </member>
         <member name="M:Coldairarrow.Util.Extention.OrderBy``1(System.Linq.IQueryable{``0},System.String,System.String)">
@@ -1971,6 +1948,14 @@
             <param name="str">字符串</param>
             <returns></returns>
         </member>
+        <member name="M:Coldairarrow.Util.Extention.IsWeakPwd(System.String)">
+            <summary>
+            是否为弱密码
+            注:密码必须包含数字、小写字母、大写字母和其他符号中的两种并且长度大于8
+            </summary>
+            <param name="pwd">密码</param>
+            <returns></returns>
+        </member>
         <member name="T:Coldairarrow.Util.ParameterReplaceVisitor">
             <summary>
             继承ExpressionVisitor类，实现参数替换统一
@@ -2114,6 +2099,14 @@
             <param name="dt">表格数据</param>
             <returns>Byte数组</returns>
         </member>
+        <member name="M:Coldairarrow.Util.AsposeOfficeHelper.ExportExcelByTemplate(System.String,System.ValueTuple{System.String,System.Object}[])">
+            <summary>
+            通过模板导出Excel
+            </summary>
+            <param name="templateFile">模板</param>
+            <param name="dataSource">数据源</param>
+            <returns>文件Byte[]</returns>
+        </member>
         <member name="M:Coldairarrow.Util.AsposeOfficeHelper.ReadExcel(System.String)">
             <summary>
             从excel文件导入数据
@@ -2144,6 +2137,26 @@
             </summary>
             <param name="fileBytes">文件字节源</param>
             <param name="exportColumnName">是否将第一行当作标题行</param>
+            <returns></returns>
+        </member>
+        <member name="T:Coldairarrow.Util.AsyncHelper">
+            <summary>
+            异步转同步,防止ASP.NET中死锁
+            https://cpratt.co/async-tips-tricks/
+            </summary>
+        </member>
+        <member name="M:Coldairarrow.Util.AsyncHelper.RunSync(System.Func{System.Threading.Tasks.Task})">
+            <summary>
+            同步执行
+            </summary>
+            <param name="func">任务</param>
+        </member>
+        <member name="M:Coldairarrow.Util.AsyncHelper.RunSync``1(System.Func{System.Threading.Tasks.Task{``0}})">
+            <summary>
+            同步执行
+            </summary>
+            <typeparam name="TResult">返回类型</typeparam>
+            <param name="func">任务</param>
             <returns></returns>
         </member>
         <member name="T:Coldairarrow.Util.BaiduApiHelper">
@@ -2283,6 +2296,95 @@
             <param name="firstFunc">首先执行的方法</param>
             <param name="next">接下来执行的方法</param>
         </member>
+        <member name="T:Coldairarrow.Util.EncodingHelper">
+            <summary>
+            编码帮助类
+            </summary>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.GB2312Probability(System.SByte[])">
+            <summary>
+            判断是GB2312编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.GBKProbability(System.SByte[])">
+            <summary>
+            判断是GBK编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.HZProbability(System.SByte[])">
+            <summary>
+            判断是HZ编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.BIG5Probability(System.SByte[])">
+            <summary>
+            判断是BIG5编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.ENCTWProbability(System.SByte[])">
+            <summary>
+            判断是CNS11643(台湾)编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.ISO2022CNProbability(System.SByte[])">
+            <summary>
+            判断是ISO2022CN编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.UTF8Probability(System.SByte[])">
+            <summary>
+            判断是UTF8编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.UnicodeProbability(System.SByte[])">
+            <summary>
+            判断是Unicode编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.ASCIIProbability(System.SByte[])">
+            <summary>
+            判断是ASCII编码的可能性
+            </summary>
+            <param name="rawtext">要判断的 <see cref="T:System.SByte"/> 字节数组</param>
+            <returns>返回 0 至 100 之间的可能性</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.FileLength(System.IO.FileInfo)">
+            <summary>
+            检测当前文件的大小
+            </summary>
+            <param name="file">被检测的文件</param>
+            <returns>当前文件的大小。</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.Identity(System.Int64)">
+            <summary>
+            This method returns the literal value received
+            </summary>
+            <param name="literal">The literal to return</param>
+            <returns>The received value</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.EncodingHelper.GetEncodingString(System.IO.FileInfo)">
+            <summary>
+            获取文件编码信息
+            </summary>
+            <param name="file">文件</param>
+            <returns>编码字符串</returns>
+        </member>
         <member name="M:Coldairarrow.Util.EnumHelper.ToOptionList(System.Type)">
             <summary>
             将枚举类型转为选项列表
@@ -2405,6 +2507,25 @@
             <param name="msg">日志消息</param>
             <param name="path">日志文件位置（默认为D:\测试\a.log）</param>
         </member>
+        <member name="T:Coldairarrow.Util.FileZipHelper">
+            <summary>
+            文件压缩帮助类
+            </summary>
+        </member>
+        <member name="M:Coldairarrow.Util.FileZipHelper.ZipFile(Coldairarrow.Util.FileEntry)">
+            <summary>
+            压缩一个文件
+            </summary>
+            <param name="file">文件信息</param>
+            <returns></returns>
+        </member>
+        <member name="M:Coldairarrow.Util.FileZipHelper.ZipFile(System.Collections.Generic.List{Coldairarrow.Util.FileEntry})">
+            <summary>
+            压缩多个文件
+            </summary>
+            <param name="files">文件信息列表</param>
+            <returns></returns>
+        </member>
         <member name="T:Coldairarrow.Util.GuidHelper">
             <summary>
             GUID帮助类
@@ -2416,6 +2537,11 @@
             </summary>
             <returns></returns>
         </member>
+        <member name="T:Coldairarrow.Util.HttpClientHelper">
+            <summary>
+            Http请求帮助类
+            </summary>
+        </member>
         <member name="T:Coldairarrow.Util.HttpHelper">
             <summary>
             Http请求操作帮助类
@@ -2424,6 +2550,11 @@
         <member name="M:Coldairarrow.Util.HttpHelper.#cctor">
             <summary>
             静态构造函数
+            </summary>
+        </member>
+        <member name="P:Coldairarrow.Util.HttpHelper.HandleLog">
+            <summary>
+            记录日志
             </summary>
         </member>
         <member name="M:Coldairarrow.Util.HttpHelper.GetData(System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.Dictionary{System.String,System.String},System.Security.Cryptography.X509Certificates.X509Certificate)">
@@ -2641,6 +2772,54 @@
             <param name="imgBase64OrUrl">URL地址或者Base64字符串</param>
             <returns></returns>
         </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.BuildVerifyCode(System.Int32)">
+            <summary>
+            生成图片验证码
+            </summary>
+            <param name="length">验证码字符数</param>
+            <returns>图片byte[]和code</returns>
+        </member>
+        <member name="F:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.character">
+            <summary>  
+            验证码的字符集，去掉了一些容易混淆的字符  
+            </summary>  
+        </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.CreateValidateCode(System.Int32,System.Int32)">
+            <summary>
+            
+            </summary>
+            <param name="codeType">验证码类型(0-字母数字混合,1-数字,2-字母)</param>
+            <param name="codeCount">验证码字符个数</param>
+            <returns></returns>
+        </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.CreateValidateCode(System.Int32)">
+            <summary>     
+            生成验证码     
+            </summary>     
+            <param name="length">指定验证码的长度</param>     
+            <returns></returns>     
+        </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.CreateValidateGraphic(System.String,System.Single,System.Int32)">
+            <summary>     
+            创建验证码的图片     
+            </summary>        
+            <param name="validateCode">验证码</param>  
+            <param name="fontsize"></param>
+            <param name="height"></param>
+        </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.GetImageWidth(System.Int32)">
+            <summary>     
+            得到验证码图片的长度     
+            </summary>     
+            <param name="validateNumLength">验证码的长度</param>     
+            <returns></returns>     
+        </member>
+        <member name="M:Coldairarrow.Util.ImgVerifyCodeHelper.VerifyCodeFactory.GetImageHeight">
+            <summary>     
+            得到验证码的高度     
+            </summary>     
+            <returns></returns>     
+        </member>
         <member name="T:Coldairarrow.Util.IocHelper">
             <summary>
             Ioc容器帮助类
@@ -2742,7 +2921,7 @@
         </member>
         <member name="T:Coldairarrow.Util.JobHelper">
             <summary>
-            时间帮助类
+            任务帮助类
             </summary>
         </member>
         <member name="M:Coldairarrow.Util.JobHelper.SetIntervalJob(System.Action,System.TimeSpan)">
@@ -2751,6 +2930,7 @@
             </summary>
             <param name="action">执行的操作</param>
             <param name="timeSpan">时间间隔</param>
+            <returns>任务标识Id</returns>
         </member>
         <member name="M:Coldairarrow.Util.JobHelper.SetDailyJob(System.Action,System.Int32,System.Int32,System.Int32)">
             <summary>
@@ -2760,6 +2940,30 @@
             <param name="h">时</param>
             <param name="m">分</param>
             <param name="s">秒</param>
+            <returns>任务标识Id</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.JobHelper.SetDelayJob(System.Action,System.TimeSpan)">
+            <summary>
+            设置延时任务,仅执行一次
+            </summary>
+            <param name="action">执行的操作</param>
+            <param name="delay">延时时间</param>
+            <returns>任务标识Id</returns>
+        </member>
+        <member name="M:Coldairarrow.Util.JobHelper.SetCronJob(System.Action,System.String)">
+            <summary>
+            通过表达式创建任务
+            表达式规则参考:http://www.jsons.cn/quartzcron/
+            </summary>
+            <param name="action">执行的操作</param>
+            <param name="cronExpression">表达式</param>
+            <returns></returns>
+        </member>
+        <member name="M:Coldairarrow.Util.JobHelper.RemoveJob(System.String)">
+            <summary>
+            删除任务
+            </summary>
+            <param name="jobId">任务标识Id</param>
         </member>
         <member name="M:Coldairarrow.Util.JWTHelper.GetToken(System.String,System.String)">
             <summary>
@@ -2970,12 +3174,6 @@
             <param name="source">值的集合</param>
             <returns></returns>
         </member>
-        <member name="T:Coldairarrow.Util.TaskHelper">
-            <summary>
-            异步转同步,防止ASP.NET中死锁
-            https://stackoverflow.com/questions/5095183/how-would-i-run-an-async-taskt-method-synchronously
-            </summary>
-        </member>
         <member name="T:Coldairarrow.Util.TreeHelper">
             <summary>
             树结构帮助类
@@ -3124,9 +3322,7 @@
         </member>
         <member name="P:Coldairarrow.Util.AjaxResult.ErrorCode">
             <summary>
-            错误代码：
-            1：未登录
-            其它待定义
+            错误代码
             </summary>
         </member>
         <member name="P:Coldairarrow.Util.AjaxResult.Msg">
@@ -3148,6 +3344,35 @@
             <summary>
             总数据量（仅分页时有效）
             </summary>
+        </member>
+        <member name="T:Coldairarrow.Util.BusException">
+            <summary>
+            业务异常
+            注:并不会当作真正的异常处理,仅为方便返回前端错误提示信息
+            </summary>
+        </member>
+        <member name="P:Coldairarrow.Util.BusException.ErrorCode">
+            <summary>
+            错误代码
+            </summary>
+        </member>
+        <member name="M:Coldairarrow.Util.BusException.#ctor">
+            <summary>
+            构造函数
+            </summary>
+        </member>
+        <member name="M:Coldairarrow.Util.BusException.#ctor(System.String)">
+            <summary>
+            构造函数
+            </summary>
+            <param name="message">错误信息</param>
+        </member>
+        <member name="M:Coldairarrow.Util.BusException.#ctor(System.String,System.Int32)">
+            <summary>
+            构造函数
+            </summary>
+            <param name="message">错误信息</param>
+            <param name="errorCode">错误代码</param>
         </member>
         <member name="T:Coldairarrow.Util.DatabaseType">
             <summary>
@@ -3375,12 +3600,43 @@
             孩子节点
             </summary>
         </member>
+        <member name="T:Coldairarrow.Util.UpdateType">
+            <summary>
+            更新模式
+            注:[Field]=[Field] {UpdateType} value
+            </summary>
+        </member>
+        <member name="F:Coldairarrow.Util.UpdateType.Equal">
+            <summary>
+            等,即赋值,[Field]= value
+            </summary>
+        </member>
+        <member name="F:Coldairarrow.Util.UpdateType.Add">
+            <summary>
+            自增,[Field]=[Field] + value
+            </summary>
+        </member>
+        <member name="F:Coldairarrow.Util.UpdateType.Minus">
+            <summary>
+            自减,[Field]=[Field] - value
+            </summary>
+        </member>
+        <member name="F:Coldairarrow.Util.UpdateType.Multiply">
+            <summary>
+            自乘,[Field]=[Field] * value
+            </summary>
+        </member>
+        <member name="F:Coldairarrow.Util.UpdateType.Divide">
+            <summary>
+            自除,[Field]=[Field] / value
+            </summary>
+        </member>
         <member name="T:Microsoft.AspNetCore.Mvc.Filters.Extention">
             <summary>
             拓展类
             </summary>
         </member>
-        <member name="M:Microsoft.AspNetCore.Mvc.Filters.Extention.ContainsFilter``1(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext)">
+        <member name="M:Microsoft.AspNetCore.Mvc.Filters.Extention.ContainsFilter``1(Microsoft.AspNetCore.Mvc.Filters.FilterContext)">
             <summary>
             是否拥有某过滤器
             </summary>

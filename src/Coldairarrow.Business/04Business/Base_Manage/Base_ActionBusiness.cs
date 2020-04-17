@@ -1,19 +1,20 @@
-using Coldairarrow.Entity.Base_Manage;
+ï»¿using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using static Coldairarrow.Entity.Base_Manage.EnumType;
 
 namespace Coldairarrow.Business.Base_Manage
 {
     public class Base_ActionBusiness : BaseBusiness<Base_Action>, IBase_ActionBusiness, IDependency
     {
-        #region Íâ²¿½Ó¿Ú
+        #region å¤–éƒ¨æ¥å£
 
-        public List<Base_Action> GetDataList(Pagination pagination, string keyword = null, string parentId = null, List<int> types = null, IQueryable<Base_Action> q = null)
+        public async Task<List<Base_Action>> GetDataListAsync(Pagination pagination, string keyword = null, string parentId = null, List<int> types = null, IQueryable<Base_Action> q = null)
         {
             q = q ?? GetIQueryable();
             var where = LinqHelper.True<Base_Action>();
@@ -26,15 +27,15 @@ namespace Coldairarrow.Business.Base_Manage
             if (types?.Count > 0)
                 where = where.And(x => types.Contains(x.Type));
 
-            return q.Where(where).GetPagination(pagination).ToList();
+            return await q.Where(where).GetPagination(pagination).ToListAsync();
         }
 
-        public List<Base_ActionDTO> GetTreeDataList(string keyword, List<int> types, bool selectable, IQueryable<Base_Action> q = null, bool checkEmptyChildren = false)
+        public async Task<List<Base_ActionDTO>> GetTreeDataListAsync(string keyword, List<int> types, bool selectable, IQueryable<Base_Action> q = null, bool checkEmptyChildren = false)
         {
             var where = LinqHelper.True<Base_Action>();
             if (!types.IsNullOrEmpty())
                 where = where.And(x => types.Contains(x.Type));
-            var qList = (q ?? GetIQueryable()).Where(where).OrderBy(x => x.Sort).ToList();
+            var qList = await (q ?? GetIQueryable()).Where(where).OrderBy(x => x.Sort).ToListAsync();
 
             var treeList = qList.Select(x => new Base_ActionDTO
             {
@@ -50,20 +51,20 @@ namespace Coldairarrow.Business.Base_Manage
                 selectable = selectable
             }).ToList();
 
-            //²Ëµ¥½ÚµãÖĞ,Èô×Ó½ÚµãÎª¿ÕÔòÒÆ³ı¸¸½Úµã
+            //èœå•èŠ‚ç‚¹ä¸­,è‹¥å­èŠ‚ç‚¹ä¸ºç©ºåˆ™ç§»é™¤çˆ¶èŠ‚ç‚¹
             if (checkEmptyChildren)
                 treeList = treeList.Where(x => x.Type != 0 || TreeHelper.GetChildren(treeList, x, false).Count > 0).ToList();
 
-            SetProperty(treeList);
+            await SetProperty(treeList);
 
             return TreeHelper.BuildTree(treeList);
 
-            void SetProperty(List<Base_ActionDTO> _list)
+            async Task SetProperty(List<Base_ActionDTO> _list)
             {
                 var ids = _list.Select(x => x.Id).ToList();
-                var allPermissions = GetIQueryable()
+                var allPermissions = await GetIQueryable()
                     .Where(x => ids.Contains(x.ParentId) && x.Type == 2)
-                    .ToList();
+                    .ToListAsync();
 
                 _list.ForEach(aData =>
                 {
@@ -78,81 +79,74 @@ namespace Coldairarrow.Business.Base_Manage
         }
 
         /// <summary>
-        /// »ñÈ¡Ö¸¶¨µÄµ¥ÌõÊı¾İ
+        /// è·å–æŒ‡å®šçš„å•æ¡æ•°æ®
         /// </summary>
-        /// <param name="id">Ö÷¼ü</param>
+        /// <param name="id">ä¸»é”®</param>
         /// <returns></returns>
-        public Base_Action GetTheData(string id)
+        public async Task<Base_Action> GetTheDataAsync(string id)
         {
-            return GetEntity(id);
+            return await GetEntityAsync(id);
         }
 
-        public AjaxResult AddData(Base_Action newData, List<Base_Action> permissionList)
+        public async Task AddDataAsync(Base_Action newData, List<Base_Action> permissionList)
         {
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Insert(newData);
-                SavePermission(newData.Id, permissionList);
+                await InsertAsync(newData);
+                await SavePermissionAsync(newData.Id, permissionList);
             });
-            if (res.Success)
-                return Success();
-            else
+            if (!res.Success)
                 throw res.ex;
         }
 
-        public AjaxResult UpdateData(Base_Action theData, List<Base_Action> permissionList)
+        public async Task UpdateDataAsync(Base_Action theData, List<Base_Action> permissionList)
         {
-            var res = RunTransaction(() =>
-            {
-                Update(theData);
-                SavePermission(theData.Id, permissionList);
-            });
-            if (res.Success)
-                return Success();
-            else
+            var res = await RunTransactionAsync(async () =>
+             {
+                 await UpdateAsync(theData);
+                 await SavePermissionAsync(theData.Id, permissionList);
+             });
+            if (!res.Success)
                 throw res.ex;
         }
 
-        public AjaxResult DeleteData(List<string> ids)
+        public async Task DeleteDataAsync(List<string> ids)
         {
-            Delete(ids);
-
-            return Success();
+            await DeleteAsync(ids);
         }
 
-        public void SavePermission(string parentId, List<Base_Action> permissionList)
+        public async Task SavePermissionAsync(string parentId, List<Base_Action> permissionList)
         {
             permissionList.ForEach(aData =>
             {
                 aData.Id = IdHelper.GetId();
                 aData.CreateTime = DateTime.Now;
                 aData.CreatorId = null;
-                aData.CreatorRealName = null;
                 aData.ParentId = parentId;
                 aData.NeedAction = true;
             });
-            //É¾³ıÔ­À´
-            Delete_Sql(x => x.ParentId == parentId && x.Type == 2);
-            //ĞÂÔö
-            Insert(permissionList);
+            //åˆ é™¤åŸæ¥
+            await Delete_SqlAsync(x => x.ParentId == parentId && x.Type == 2);
+            //æ–°å¢
+            await InsertAsync(permissionList);
 
-            //È¨ÏŞÖµ±ØĞëÎ¨Ò»
-            var repeatValues = GetIQueryable()
+            //æƒé™å€¼å¿…é¡»å”¯ä¸€
+            var repeatValues = await GetIQueryable()
                 .GroupBy(x => x.Value)
                 .Where(x => !string.IsNullOrEmpty(x.Key) && x.Count() > 1)
                 .Select(x => x.Key)
-                .ToList();
+                .ToListAsync();
             if (repeatValues.Count > 0)
-                throw new Exception($"ÒÔÏÂÈ¨ÏŞÖµÖØ¸´:{string.Join(",", repeatValues)}");
+                throw new Exception($"ä»¥ä¸‹æƒé™å€¼é‡å¤:{string.Join(",", repeatValues)}");
         }
 
         #endregion
 
-        #region Ë½ÓĞ³ÉÔ±
+        #region ç§æœ‰æˆå‘˜
 
         #endregion
 
-        #region Êı¾İÄ£ĞÍ
+        #region æ•°æ®æ¨¡å‹
 
         #endregion
     }
@@ -160,24 +154,24 @@ namespace Coldairarrow.Business.Base_Manage
     public class Base_ActionDTO : TreeModel
     {
         /// <summary>
-        /// ÀàĞÍ,²Ëµ¥=0,Ò³Ãæ=1,È¨ÏŞ=2
+        /// ç±»å‹,èœå•=0,é¡µé¢=1,æƒé™=2
         /// </summary>
         public Int32 Type { get; set; }
 
         /// <summary>
-        /// ²Ëµ¥µØÖ·
+        /// èœå•åœ°å€
         /// </summary>
         public String Url { get; set; }
 
         public string path { get => Url; }
 
         /// <summary>
-        /// ÊÇ·ñĞèÒªÈ¨ÏŞ(½öÒ³ÃæÓĞĞ§)
+        /// æ˜¯å¦éœ€è¦æƒé™(ä»…é¡µé¢æœ‰æ•ˆ)
         /// </summary>
         public bool NeedAction { get; set; }
 
         public string TypeText { get => ((ActionTypeEnum)Type).ToString(); }
-        public string NeedActionText { get => NeedAction ? "ÊÇ" : "·ñ"; }
+        public string NeedActionText { get => NeedAction ? "æ˜¯" : "å¦"; }
         public object children { get => Children; }
 
         public string title { get => Text; }
@@ -186,7 +180,7 @@ namespace Coldairarrow.Business.Base_Manage
         public bool selectable { get; set; }
 
         /// <summary>
-        /// Í¼±ê
+        /// å›¾æ ‡
         /// </summary>
         [JsonIgnore]
         public string Icon { get; set; }
@@ -194,7 +188,7 @@ namespace Coldairarrow.Business.Base_Manage
         public string icon { get => Icon; }
 
         /// <summary>
-        /// ÅÅĞò
+        /// æ’åº
         /// </summary>
         public int Sort { get; set; }
 

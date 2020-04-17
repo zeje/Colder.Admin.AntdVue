@@ -1,13 +1,14 @@
-using Coldairarrow.Business.Base_Manage;
+ï»¿using Coldairarrow.Business.Base_Manage;
 using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Api.Controllers.Base_Manage
 {
     /// <summary>
-    /// Ó¦ÓÃÃÜÔ¿
+    /// åº”ç”¨å¯†é’¥
     /// </summary>
     /// <seealso cref="Coldairarrow.Api.BaseApiController" />
     [Route("/Base_Manage/[controller]/[action]")]
@@ -24,60 +25,53 @@ namespace Coldairarrow.Api.Controllers.Base_Manage
 
         #endregion
 
-        #region »ñÈ¡
+        #region è·å–
 
         [HttpPost]
-        public ActionResult<AjaxResult<List<Base_DbLink>>> GetDataList(Pagination pagination)
+        public async Task<AjaxResult<List<Base_DbLink>>> GetDataList(Pagination pagination)
         {
-            var dataList = _dbLinkBus.GetDataList(pagination);
+            var dataList = await _dbLinkBus.GetDataListAsync(pagination);
 
-            return Content(pagination.BuildTableResult_AntdVue(dataList).ToJson());
+            return DataTable(dataList, pagination);
         }
 
         [HttpPost]
-        public ActionResult<AjaxResult<Base_DbLink>> GetTheData(string id)
+        public async Task<Base_DbLink> GetTheData(string id)
         {
-            var theData = _dbLinkBus.GetTheData(id) ?? new Base_DbLink();
-
-            return Success(theData);
+            return await _dbLinkBus.GetTheDataAsync(id) ?? new Base_DbLink();
         }
 
         #endregion
 
-        #region Ìá½»
+        #region æäº¤
 
         /// <summary>
-        /// ±£´æ
+        /// ä¿å­˜
         /// </summary>
-        /// <param name="theData">±£´æµÄÊı¾İ</param>
+        /// <param name="theData">ä¿å­˜çš„æ•°æ®</param>
         [HttpPost]
-        public ActionResult<AjaxResult> SaveData(Base_DbLink theData)
+        public async Task SaveData(Base_DbLink theData)
         {
-            AjaxResult res;
             if (theData.Id.IsNullOrEmpty())
             {
                 theData.InitEntity();
 
-                res = _dbLinkBus.AddData(theData);
+                await _dbLinkBus.AddDataAsync(theData);
             }
             else
             {
-                res = _dbLinkBus.UpdateData(theData);
+                await _dbLinkBus.UpdateDataAsync(theData);
             }
-
-            return JsonContent(res.ToJson());
         }
 
         /// <summary>
-        /// É¾³ıÊı¾İ
+        /// åˆ é™¤æ•°æ®
         /// </summary>
-        /// <param name="ids">idÊı×é,JSONÊı×é</param>
+        /// <param name="ids">idæ•°ç»„,JSONæ•°ç»„</param>
         [HttpPost]
-        public ActionResult<AjaxResult> DeleteData(string ids)
+        public async Task DeleteData(string ids)
         {
-            var res = _dbLinkBus.DeleteData(ids.ToList<string>());
-
-            return JsonContent(res.ToJson());
+            await _dbLinkBus.DeleteDataAsync(ids.ToList<string>());
         }
 
         #endregion

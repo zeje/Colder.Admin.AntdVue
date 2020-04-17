@@ -8,7 +8,7 @@ namespace Coldairarrow.Util
     /// <summary>
     /// 任务队列
     /// </summary>
-    public class TaskQeury
+    public class TaskQueue
     {
         #region 构造函数
 
@@ -16,7 +16,7 @@ namespace Coldairarrow.Util
         /// 默认队列
         /// 注：默认间隔时间1ms
         /// </summary>
-        public TaskQeury()
+        public TaskQueue()
         {
             _timeSpan = TimeSpan.Zero;
             Start();
@@ -27,7 +27,7 @@ namespace Coldairarrow.Util
         /// 注：每个任务之间间隔一段时间
         /// </summary>
         /// <param name="timeSpan">间隔时间</param>
-        public TaskQeury(TimeSpan timeSpan)
+        public TaskQueue(TimeSpan timeSpan)
         {
             _timeSpan = timeSpan;
             Start();
@@ -39,21 +39,28 @@ namespace Coldairarrow.Util
         Semaphore _semaphore { get; } = new Semaphore(0, int.MaxValue);
         private void Start()
         {
-            Task.Run(() =>
+            Task.Factory.StartNew(() =>
             {
                 while (_isRun)
                 {
-                    _semaphore.WaitOne();
-                    bool success = _taskList.TryDequeue(out Action task);
-                    if (success)
+                    try
                     {
-                        task?.Invoke();
-                    }
+                        _semaphore.WaitOne();
+                        bool success = _taskList.TryDequeue(out Action task);
+                        if (success)
+                        {
+                            task?.Invoke();
+                        }
 
-                    if (_timeSpan != TimeSpan.Zero)
-                        Thread.Sleep(_timeSpan);
+                        if (_timeSpan != TimeSpan.Zero)
+                            Thread.Sleep(_timeSpan);
+                    }
+                    catch (Exception ex)
+                    {
+                        HandleException?.Invoke(ex);
+                    }
                 }
-            });
+            }, TaskCreationOptions.LongRunning);
         }
         private bool _isRun { get; set; } = true;
         private TimeSpan _timeSpan { get; set; }
@@ -73,6 +80,8 @@ namespace Coldairarrow.Util
             _taskList.Enqueue(task);
             _semaphore.Release();
         }
+
+        public Action<Exception> HandleException { get; set; }
 
         #endregion
     }

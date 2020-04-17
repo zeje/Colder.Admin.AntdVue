@@ -1,3 +1,4 @@
+Ôªøusing Coldairarrow.Business.Cache;
 using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
 using Microsoft.EntityFrameworkCore;
@@ -5,16 +6,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Coldairarrow.Business.Base_Manage
 {
     public class Base_UserBusiness : BaseBusiness<Base_User>, IBase_UserBusiness, IDependency
     {
+        public Base_UserBusiness(IBase_UserCache userCache)
+        {
+            _userCache = userCache;
+        }
+        IBase_UserCache _userCache { get; }
         protected override string _textField => "RealName";
 
-        #region Õ‚≤øΩ”ø⁄
+        #region Â§ñÈÉ®Êé•Âè£
 
-        public List<Base_UserDTO> GetDataList(Pagination pagination, bool all, string userId = null, string keyword = null)
+        public async Task<List<Base_UserDTO>> GetDataListAsync(Pagination pagination, bool all, string userId = null, string keyword = null)
         {
             Expression<Func<Base_User, Base_Department, Base_UserDTO>> select = (a, b) => new Base_UserDTO
             {
@@ -37,25 +44,25 @@ namespace Coldairarrow.Business.Base_Manage
                     || EF.Functions.Like(x.RealName, keyword));
             }
 
-            var list = q.Where(where).GetPagination(pagination).ToList();
+            var list = await q.Where(where).GetPagination(pagination).ToListAsync();
 
-            SetProperty(list);
+            await SetProperty(list);
 
             return list;
 
-            void SetProperty(List<Base_UserDTO> users)
+            async Task SetProperty(List<Base_UserDTO> users)
             {
-                //≤π≥‰”√ªßΩ«…´ Ù–‘
+                //Ë°•ÂÖÖÁî®Êà∑ËßíËâ≤Â±ûÊÄß
                 List<string> userIds = users.Select(x => x.Id).ToList();
-                var userRoles = (from a in Service.GetIQueryable<Base_UserRole>()
-                                 join b in Service.GetIQueryable<Base_Role>() on a.RoleId equals b.Id
-                                 where userIds.Contains(a.UserId)
-                                 select new
-                                 {
-                                     a.UserId,
-                                     RoleId = b.Id,
-                                     b.RoleName
-                                 }).ToList();
+                var userRoles = await (from a in Service.GetIQueryable<Base_UserRole>()
+                                       join b in Service.GetIQueryable<Base_Role>() on a.RoleId equals b.Id
+                                       where userIds.Contains(a.UserId)
+                                       select new
+                                       {
+                                           a.UserId,
+                                           RoleId = b.Id,
+                                           b.RoleName
+                                       }).ToListAsync();
                 users.ForEach(aUser =>
                 {
                     var roleList = userRoles.Where(x => x.UserId == aUser.Id);
@@ -65,68 +72,68 @@ namespace Coldairarrow.Business.Base_Manage
             }
         }
 
-        public Base_UserDTO GetTheData(string id)
+        public async Task<Base_UserDTO> GetTheDataAsync(string id)
         {
             if (id.IsNullOrEmpty())
                 return null;
             else
-                return GetDataList(new Pagination(), true, id).FirstOrDefault();
+                return (await GetDataListAsync(new Pagination(), true, id)).FirstOrDefault();
         }
 
-        [DataAddLog(LogType.œµÕ≥”√ªßπ‹¿Ì, "RealName", "”√ªß")]
+        [DataAddLog(LogType.Á≥ªÁªüÁî®Êà∑ÁÆ°ÁêÜ, "RealName", "Áî®Êà∑")]
         [DataRepeatValidate(
             new string[] { "UserName" },
-            new string[] { "”√ªß√˚" })]
-        public AjaxResult AddData(Base_User newData, List<string> roleIds)
+            new string[] { "Áî®Êà∑Âêç" })]
+        public async Task AddDataAsync(Base_User newData, List<string> roleIds)
         {
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Insert(newData);
-                SetUserRole(newData.Id, roleIds);
+                await InsertAsync(newData);
+                await SetUserRoleAsync(newData.Id, roleIds);
             });
-            if (res.Success)
-                return Success();
-            else
-                throw new Exception("œµÕ≥“Ï≥£", res.ex);
+            if (!res.Success)
+                throw new Exception("Á≥ªÁªüÂºÇÂ∏∏", res.ex);
         }
 
-        [DataEditLog(LogType.œµÕ≥”√ªßπ‹¿Ì, "RealName", "”√ªß")]
+        [DataEditLog(LogType.Á≥ªÁªüÁî®Êà∑ÁÆ°ÁêÜ, "RealName", "Áî®Êà∑")]
         [DataRepeatValidate(
             new string[] { "UserName" },
-            new string[] { "”√ªß√˚" })]
-        public AjaxResult UpdateData(Base_User theData, List<string> roleIds)
+            new string[] { "Áî®Êà∑Âêç" })]
+        public async Task UpdateDataAsync(Base_User theData, List<string> roleIds)
         {
             if (theData.Id == GlobalSwitch.AdminId && Operator?.UserId != theData.Id)
-                return new ErrorResult("Ω˚÷π∏¸∏ƒ≥¨º∂π‹¿Ì‘±£°");
+                throw new BusException("Á¶ÅÊ≠¢Êõ¥ÊîπË∂ÖÁ∫ßÁÆ°ÁêÜÂëòÔºÅ");
 
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Update(theData);
-                SetUserRole(theData.Id, roleIds);
+                await UpdateAsync(theData);
+                await SetUserRoleAsync(theData.Id, roleIds);
             });
             if (res.Success)
-                return Success();
+            {
+                _userCache.UpdateCache(theData.Id);
+            }
             else
-                throw new Exception("œµÕ≥“Ï≥£", res.ex);
+                throw new Exception("Á≥ªÁªüÂºÇÂ∏∏", res.ex);
         }
 
-        [DataDeleteLog(LogType.œµÕ≥”√ªßπ‹¿Ì, "RealName", "”√ªß")]
-        public AjaxResult DeleteData(List<string> ids)
+        [DataDeleteLog(LogType.Á≥ªÁªüÁî®Êà∑ÁÆ°ÁêÜ, "RealName", "Áî®Êà∑")]
+        public async Task DeleteDataAsync(List<string> ids)
         {
             if (ids.Contains(GlobalSwitch.AdminId))
-                return Error("≥¨º∂π‹¿Ì‘± «ƒ⁄÷√’À∫≈,Ω˚÷π…æ≥˝£°");
-            var userIds = GetIQueryable().Where(x => ids.Contains(x.Id)).Select(x => x.Id).ToList();
+                throw new BusException("Ë∂ÖÁ∫ßÁÆ°ÁêÜÂëòÊòØÂÜÖÁΩÆË¥¶Âè∑,Á¶ÅÊ≠¢Âà†Èô§ÔºÅ");
+            var userIds = await GetIQueryable().Where(x => ids.Contains(x.Id)).Select(x => x.Id).ToListAsync();
 
-            Delete(ids);
+            await DeleteAsync(ids);
 
-            return Success();
+            _userCache.UpdateCache(ids);
         }
 
         #endregion
 
-        #region ÀΩ”–≥…‘±
+        #region ÁßÅÊúâÊàêÂëò
 
-        private void SetUserRole(string userId, List<string> roleIds)
+        private async Task SetUserRoleAsync(string userId, List<string> roleIds)
         {
             var userRoleList = roleIds.Select(x => new Base_UserRole
             {
@@ -135,13 +142,13 @@ namespace Coldairarrow.Business.Base_Manage
                 UserId = userId,
                 RoleId = x
             }).ToList();
-            Service.Delete_Sql<Base_UserRole>(x => x.UserId == userId);
-            Service.Insert(userRoleList);
+            await Service.Delete_SqlAsync<Base_UserRole>(x => x.UserId == userId);
+            await Service.InsertAsync(userRoleList);
         }
 
         #endregion
 
-        #region  ˝æ›ƒ£–Õ
+        #region Êï∞ÊçÆÊ®°Âûã
 
         #endregion
     }
@@ -150,7 +157,7 @@ namespace Coldairarrow.Business.Base_Manage
     [MapTo(typeof(Base_User))]
     public class Base_UserDTO : Base_User
     {
-        public string RoleNames { get => string.Join(",", RoleNameList); }
+        public string RoleNames { get => string.Join(",", RoleNameList ?? new List<string>()); }
         public List<string> RoleIdList { get; set; }
         public List<string> RoleNameList { get; set; }
         public EnumType.RoleTypeEnum RoleType
@@ -170,7 +177,7 @@ namespace Coldairarrow.Business.Base_Manage
             }
         }
         public string DepartmentName { get; set; }
-        public string SexText { get => Sex == 1 ? "ƒ–" : "≈Æ"; }
+        public string SexText { get => Sex == 1 ? "Áî∑" : "Â•≥"; }
         public string BirthdayText { get => Birthday?.ToString("yyyy-MM-dd"); }
     }
 }

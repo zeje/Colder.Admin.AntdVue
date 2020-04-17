@@ -1,18 +1,20 @@
-using AutoMapper;
+ï»¿using AutoMapper;
 using Coldairarrow.Entity.Base_Manage;
 using Coldairarrow.Util;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using static Coldairarrow.Entity.Base_Manage.EnumType;
 
 namespace Coldairarrow.Business.Base_Manage
 {
     public class Base_RoleBusiness : BaseBusiness<Base_Role>, IBase_RoleBusiness, IDependency
     {
-        #region Íâ²¿½Ó¿Ú
+        #region å¤–éƒ¨æ¥å£
 
-        public List<Base_RoleDTO> GetDataList(Pagination pagination, string roleId = null, string roleName = null)
+        public async Task<List<Base_RoleDTO>> GetDataListAsync(Pagination pagination, string roleId = null, string roleName = null)
         {
             var where = LinqHelper.True<Base_Role>();
             if (!roleId.IsNullOrEmpty())
@@ -20,28 +22,28 @@ namespace Coldairarrow.Business.Base_Manage
             if (!roleName.IsNullOrEmpty())
                 where = where.And(x => x.RoleName.Contains(roleName));
 
-            var list = GetIQueryable()
+            var list = (await GetIQueryable()
                 .Where(where)
                 .GetPagination(pagination)
-                .ToList()
+                .ToListAsync())
                 .Select(x => Mapper.Map<Base_RoleDTO>(x))
                 .ToList();
 
-            SetProperty(list);
+            await SetProperty(list);
 
             return list;
 
-            void SetProperty(List<Base_RoleDTO> _list)
+            async Task SetProperty(List<Base_RoleDTO> _list)
             {
-                var allActionIds = Service.GetIQueryable<Base_Action>().Select(x => x.Id).ToList();
+                var allActionIds = await Service.GetIQueryable<Base_Action>().Select(x => x.Id).ToListAsync();
 
                 var ids = _list.Select(x => x.Id).ToList();
-                var roleActions = Service.GetIQueryable<Base_RoleAction>()
+                var roleActions = await Service.GetIQueryable<Base_RoleAction>()
                     .Where(x => ids.Contains(x.RoleId))
-                    .ToList();
+                    .ToListAsync();
                 _list.ForEach(aData =>
                 {
-                    if (aData.RoleName == RoleTypeEnum.³¬¼¶¹ÜÀíÔ±.ToString())
+                    if (aData.RoleName == RoleTypeEnum.è¶…çº§ç®¡ç†å‘˜.ToString())
                         aData.Actions = allActionIds;
                     else
                         aData.Actions = roleActions.Where(x => x.RoleId == aData.Id).Select(x => x.ActionId).ToList();
@@ -49,60 +51,54 @@ namespace Coldairarrow.Business.Base_Manage
             }
         }
 
-        public Base_RoleDTO GetTheData(string id)
+        public async Task<Base_RoleDTO> GetTheDataAsync(string id)
         {
-            return GetDataList(new Pagination(), id).FirstOrDefault();
+            return (await GetDataListAsync(new Pagination(), id)).FirstOrDefault();
         }
 
-        [DataAddLog(LogType.ÏµÍ³½ÇÉ«¹ÜÀí, "RoleName", "½ÇÉ«")]
-        [DataRepeatValidate(new string[] { "RoleName" }, new string[] { "½ÇÉ«Ãû" })]
-        public AjaxResult AddData(Base_Role newData, List<string> actions)
+        [DataAddLog(LogType.ç³»ç»Ÿè§’è‰²ç®¡ç†, "RoleName", "è§’è‰²")]
+        [DataRepeatValidate(new string[] { "RoleName" }, new string[] { "è§’è‰²å" })]
+        public async Task AddDataAsync(Base_Role newData, List<string> actions)
         {
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Insert(newData);
-                SetRoleAction(newData.Id, actions);
+                await InsertAsync(newData);
+                await SetRoleActionAsync(newData.Id, actions);
             });
             if (!res.Success)
-                throw new Exception("ÏµÍ³Òì³£,ÇëÖØÊÔ", res.ex);
-
-            return Success();
+                throw new Exception("ç³»ç»Ÿå¼‚å¸¸,è¯·é‡è¯•", res.ex);
         }
 
-        [DataEditLog(LogType.ÏµÍ³½ÇÉ«¹ÜÀí, "RoleName", "½ÇÉ«")]
-        [DataRepeatValidate(new string[] { "RoleName" }, new string[] { "½ÇÉ«Ãû" })]
-        public AjaxResult UpdateData(Base_Role theData, List<string> actions)
+        [DataEditLog(LogType.ç³»ç»Ÿè§’è‰²ç®¡ç†, "RoleName", "è§’è‰²")]
+        [DataRepeatValidate(new string[] { "RoleName" }, new string[] { "è§’è‰²å" })]
+        public async Task UpdateDataAsync(Base_Role theData, List<string> actions)
         {
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Update(theData);
-                SetRoleAction(theData.Id, actions);
+                await UpdateAsync(theData);
+                await SetRoleActionAsync(theData.Id, actions);
             });
             if (!res.Success)
-                throw new Exception("ÏµÍ³Òì³£,ÇëÖØÊÔ", res.ex);
-
-            return Success();
+                throw new Exception("ç³»ç»Ÿå¼‚å¸¸,è¯·é‡è¯•", res.ex);
         }
 
-        [DataDeleteLog(LogType.ÏµÍ³½ÇÉ«¹ÜÀí, "RoleName", "½ÇÉ«")]
-        public AjaxResult DeleteData(List<string> ids)
+        [DataDeleteLog(LogType.ç³»ç»Ÿè§’è‰²ç®¡ç†, "RoleName", "è§’è‰²")]
+        public async Task DeleteDataAsync(List<string> ids)
         {
-            var res = RunTransaction(() =>
+            var res = await RunTransactionAsync(async () =>
             {
-                Delete(ids);
-                Service.Delete_Sql<Base_RoleAction>(x => ids.Contains(x.Id));
+                await DeleteAsync(ids);
+                await Service.Delete_SqlAsync<Base_RoleAction>(x => ids.Contains(x.Id));
             });
             if (!res.Success)
-                throw new Exception("ÏµÍ³Òì³£,ÇëÖØÊÔ", res.ex);
-
-            return Success();
+                throw new Exception("ç³»ç»Ÿå¼‚å¸¸,è¯·é‡è¯•", res.ex);
         }
 
         #endregion
 
-        #region Ë½ÓĞ³ÉÔ±
+        #region ç§æœ‰æˆå‘˜
 
-        private void SetRoleAction(string roleId, List<string> actions)
+        private async Task SetRoleActionAsync(string roleId, List<string> actions)
         {
             var roleActions = (actions ?? new List<string>())
                 .Select(x => new Base_RoleAction
@@ -112,13 +108,13 @@ namespace Coldairarrow.Business.Base_Manage
                     CreateTime = DateTime.Now,
                     RoleId = roleId
                 }).ToList();
-            Service.Delete_Sql<Base_RoleAction>(x => x.RoleId == roleId);
-            Service.Insert(roleActions);
+            await Service.Delete_SqlAsync<Base_RoleAction>(x => x.RoleId == roleId);
+            await Service.InsertAsync(roleActions);
         }
 
         #endregion
 
-        #region Êı¾İÄ£ĞÍ
+        #region æ•°æ®æ¨¡å‹
 
         #endregion
     }

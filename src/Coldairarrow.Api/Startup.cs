@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,6 +26,7 @@ namespace Coldairarrow.Api
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            ConfigHelper.Configuration = configuration;
         }
 
         public IConfiguration Configuration { get; }
@@ -35,7 +37,11 @@ namespace Coldairarrow.Api
             {
                 options.Filters.Add<GlobalExceptionFilter>();
             })
-            .AddControllersAsServices();
+            .AddControllersAsServices()
+            .AddNewtonsoftJson(options =>
+            {
+                options.SerializerSettings.ContractResolver = new DefaultContractResolver();
+            });
 
             services.AddScoped<IHttpContextAccessor, HttpContextAccessor>()
             .AddTransient<IActionContextAccessor, ActionContextAccessor>()
@@ -55,6 +61,28 @@ namespace Coldairarrow.Api
                 {
                     Version = "v1.0.0",
                     Title = "接口文档"
+                });
+                // JWT认证                                                 
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    Type = SecuritySchemeType.Http,
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Description = "Authorization:Bearer {your JWT token}<br/><b>授权地址:/Base_Manage/Home/SubmitLogin</b>",
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme{Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] { }
+                    }
                 });
                 // 为 Swagger JSON and UI设置xml文档注释路径
                 var basePath = Path.GetDirectoryName(typeof(Program).Assembly.Location);//获取应用程序所在目录（绝对，不受工作目录影响，建议采用此方法获取路径）
@@ -96,11 +124,6 @@ namespace Coldairarrow.Api
 
             //AOP
             builder.RegisterType<Interceptor>();
-
-            //请求结束自动释放
-            builder.RegisterType<DisposableContainer>()
-                .As<IDisposableContainer>()
-                .InstancePerLifetimeScope();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -134,6 +157,7 @@ namespace Coldairarrow.Api
             AutofacHelper.Container = app.ApplicationServices.GetAutofacRoot();
             InitAutoMapper();
             InitId();
+            ApiLog();
         }
 
         private void InitAutoMapper()
@@ -161,6 +185,18 @@ namespace Coldairarrow.Api
                 //使用Zookeeper
                 //.UseZookeeper("127.0.0.1:2181", 200, GlobalSwitch.ProjectName)
                 .Boot();
+        }
+
+        private void ApiLog()
+        {
+            HttpHelper.HandleLog = log =>
+            {
+                //接口日志
+                using (var lifescope = AutofacHelper.Container.BeginLifetimeScope())
+                {
+                    lifescope.Resolve<ILogger>().Info(LogType.系统跟踪, log);
+                }
+            };
         }
     }
 }
